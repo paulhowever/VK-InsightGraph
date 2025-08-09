@@ -14,11 +14,9 @@ from analysis.graph_viz_plotly import plot_graph
 from analysis.predictor import get_isolation_predictions
 from analysis.llm_analyzer import analyze_with_llm
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Apply custom styles with dark gray theme and VK logo
 st.set_page_config(page_title="VK InsightGraph", layout="wide")
 st.markdown("""
     <style>
@@ -42,7 +40,7 @@ st.markdown("""
         color: #BBDEFB !important;
         font-weight: 700;
         margin-bottom: 0.5rem;
-        margin-left: 40px; /* Offset for VK logo */
+        margin-left: 40px;
     }
     h2 {
         color: #90CAF9 !important;
@@ -128,7 +126,6 @@ st.markdown("""
 4. Нажмите **Скачать граф как PNG** для сохранения визуализации.
 """)
 
-# --- Загрузка данных ---
 @st.cache_data
 def load_data(uploaded_file, dashboard_path, parent_path):
     if uploaded_file is not None:
@@ -182,23 +179,19 @@ df = load_data(uploaded_file, dashboard_path, parent_path)
 if df is None:
     st.stop()
 
-# Проверка структуры данных
 required_columns = ['sender', 'receiver', 'timestamp']
 if not all(col in df.columns for col in required_columns):
     st.error("Файл должен содержать колонки: sender, receiver, timestamp")
     st.stop()
 
-# Если нет колонки channel, считаем все записи сообщениями
 if 'channel' not in df.columns:
     df['channel'] = 'message'
     logger.info("Added 'channel' column with default 'message'")
 
-# Если есть call_duration, но не для всех строк, заполняем NaN для сообщений
 if 'call_duration' in df.columns:
     df['call_duration'] = df['call_duration'].where(df['channel'] == 'call', 0)
     logger.info("Filled missing 'call_duration' with 0 for non-call records")
 
-# Добавляем отделы в метрики
 @st.cache_data
 def enrich_metrics_with_departments(df, metrics):
     departments = {}
@@ -208,16 +201,13 @@ def enrich_metrics_with_departments(df, metrics):
     metrics['department'] = metrics['user'].map(departments).fillna('Unknown')
     return metrics
 
-# --- Обработка данных ---
 @st.cache_resource
 def build_graph_cached(df, weight_col=None, export_metrics=False):
     return build_graph_from_messages(df, weight_col, export_metrics)
 
-# Разделяем сообщения и звонки
 df_messages = df[df['channel'] == 'message'].copy()
 df_calls = df[df['channel'] == 'call'].copy()
 
-# Граф и метрики для сообщений
 try:
     G_messages = build_graph_cached(df_messages)
     logger.info(f"G_messages created with {len(G_messages.nodes())} nodes and {len(G_messages.edges())} edges")
@@ -231,7 +221,6 @@ except Exception as e:
     st.error(f"Ошибка при обработке данных сообщений: {str(e)}")
     st.stop()
 
-# Граф и метрики для звонков
 try:
     G_calls = build_graph_cached(df_calls, weight_col='call_duration')
     logger.info(f"G_calls created with {len(G_calls.nodes())} nodes and {len(G_calls.edges())} edges")
@@ -240,9 +229,8 @@ try:
     metrics_calls = add_clusters_to_metrics(G_calls, metrics_calls)
 except Exception as e:
     st.error(f"Ошибка при обработке данных звонков: {str(e)}")
-    metrics_calls = pd.DataFrame()  # Fallback empty DataFrame
+    metrics_calls = pd.DataFrame()
 
-# --- Фильтры ---
 with st.sidebar:
     st.header("🔍 Фильтры")
     if 'group_filter' not in st.session_state:
@@ -270,7 +258,6 @@ with st.sidebar:
         st.session_state.show_bridges = False
         st.rerun()
 
-# Применяем фильтры
 filtered_metrics = metrics_messages.copy()
 if group_filter:
     filtered_metrics = filtered_metrics[filtered_metrics['group_id'].isin(group_filter)]
@@ -284,7 +271,6 @@ if show_bridges:
     filtered_metrics = filtered_metrics[filtered_metrics['is_bridge']]
 logger.info(f"Filtered metrics users: {filtered_metrics['user'].tolist()}")
 
-# --- Вкладки ---
 tab1, tab2, tab3 = st.tabs(["📩 Сообщения", "📞 Звонки", "🗓️ Встречи"])
 
 with tab1:
@@ -415,7 +401,6 @@ with tab3:
     except Exception as e:
         st.error(f"Ошибка в анализе ИИ: {str(e)}")
 
-# --- Рекомендации ---
 st.subheader("📝 Рекомендации")
 if filtered_metrics.empty:
     st.warning("Нет данных для отображения после фильтрации.")
@@ -437,7 +422,6 @@ else:
         for user in bridges['user']:
             st.markdown(f"<div class='recommendation-card'>{user}: Поддерживайте активность, связывает команды.</div>", unsafe_allow_html=True)
 
-# --- Предсказания ---
 st.subheader("🔮 Предсказания изоляции")
 try:
     high_risk = get_isolation_predictions(metrics_messages)
@@ -450,7 +434,6 @@ try:
 except Exception as e:
     st.error(f"Ошибка в предсказаниях: {str(e)}")
 
-# --- Таблица метрик ---
 st.subheader("📈 Метрики участников")
 st.dataframe(
     filtered_metrics.sort_values(by="degree", ascending=False).reset_index(drop=True),
@@ -458,7 +441,6 @@ st.dataframe(
     height=500
 )
 
-# --- Поиск пользователя ---
 with st.sidebar:
     st.header("🔎 Поиск участника")
     search_name = st.text_input("Введите имя (user_id)")
