@@ -1,0 +1,9 @@
+streamlit==1.38.0
+pandas==2.2.2
+networkx==3.3
+plotly==5.22.0
+numpy==1.26.4
+scikit-learn==1.5.1
+python-louvain==0.16
+google-generativeai==0.7.2
+python-dotenv==1.0.1
